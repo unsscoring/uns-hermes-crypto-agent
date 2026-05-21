@@ -11,7 +11,7 @@ coingecko:
 
 # Telegram Bot
 telegram:
-  bot_token: "${TELEGRAM_BOT_TOKEN}"
+  bot_token: "8819422203:AAF6PsmwA2zEE394ao2JHyxvegxqrHpeQX4"
   allowed_users:
     - 1094401966  # Your Telegram user ID
 
