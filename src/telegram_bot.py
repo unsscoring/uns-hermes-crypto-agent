@@ -18,6 +18,7 @@ from src.crawler import CryptoCrawler
 from src.analysis import TechnicalAnalysis
 from src.trading import PaperTradingEngine
 from src.token_tracker import TokenTracker
+from src.ai_analysis import MiMoAnalyzer
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +33,7 @@ class CryptoTelegramBot:
         self.analyzer = TechnicalAnalysis()
         self.trader = PaperTradingEngine()
         self.tracker = TokenTracker()
+        self.ai = MiMoAnalyzer()  # MiMo AI Analyzer
         
         # Default watchlist
         self.watchlist = ["bitcoin", "ethereum", "solana", "cardano", "ripple"]
@@ -96,14 +98,14 @@ BTC, ETH, SOL, ADA, XRP
         await update.message.reply_text(help_text, parse_mode=ParseMode.MARKDOWN)
     
     async def crypto(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Handle /crypto command - Full market analysis"""
+        """Handle /crypto command - Full market analysis with AI"""
         user_id = update.effective_user.id
         
         if not self.is_authorized(user_id):
             await update.message.reply_text("❌ Access denied.")
             return
         
-        await update.message.reply_text("⏳ Fetching market data...")
+        await update.message.reply_text("⏳ Fetching market data & analyzing with AI...")
         
         try:
             # Fetch data
@@ -111,9 +113,36 @@ BTC, ETH, SOL, ADA, XRP
             fear_greed = self.crawler.get_fear_greed_index()
             trending = self.crawler.get_trending()
             
+            # Get technical analysis for each coin
+            analysis_results = []
+            for coin_id in self.watchlist:
+                history = self.crawler.get_coin_history(coin_id, days=30)
+                if not history.empty:
+                    analysis = self.analyzer.analyze(history)
+                    market_coin = market_data[market_data['id'] == coin_id]
+                    
+                    if not market_coin.empty:
+                        analysis_results.append({
+                            'coin': coin_id,
+                            'symbol': market_coin.iloc[0]['symbol'].upper(),
+                            'price': market_coin.iloc[0].get('current_price', 0),
+                            'signal': analysis.get('combined_signal', 'neutral'),
+                            'confidence': analysis.get('confidence', 0),
+                            'signals': analysis.get('signals', {})
+                        })
+            
+            # AI Analysis with MiMo
+            market_dict = {
+                'coins': market_data.to_dict('records') if not market_data.empty else [],
+                'fear_greed': fear_greed,
+                'trending': trending
+            }
+            
+            ai_analysis = self.ai.analyze_market(market_dict, fear_greed)
+            
             # Build report
             report = []
-            report.append("🤖 *CRYPTO MARKET ANALYSIS*\n")
+            report.append("🤖 *AI-POWERED CRYPTO ANALYSIS*\n")
             
             # Fear & Greed
             if fear_greed:
@@ -133,39 +162,24 @@ BTC, ETH, SOL, ADA, XRP
                 
                 report.append(f"*Fear & Greed:* {emoji} {value} ({classification})\n")
             
-            # Market data
-            if not market_data.empty:
-                report.append("*📊 TOP COINS:*")
-                
-                for _, coin in market_data.iterrows():
-                    symbol = coin['symbol'].upper()
-                    price = coin.get('current_price', 0)
-                    change_24h = coin.get('price_change_percentage_24h', 0) or 0
-                    
-                    # Get analysis
-                    history = self.crawler.get_coin_history(coin['id'], days=30)
-                    
-                    if not history.empty:
-                        analysis = self.analyzer.analyze(history)
-                        signal = analysis.get('combined_signal', 'neutral')
-                        signal_emoji = "🟢" if signal == "buy" else "🔴" if signal == "sell" else "⚪"
-                        
-                        report.append(
-                            f"{signal_emoji} *{symbol}*: ${price:,.2f} ({change_24h:+.2f}%)"
-                        )
+            # Signals summary
+            report.append("*📊 SIGNALS SUMMARY:*")
+            for result in analysis_results:
+                signal_emoji = "🟢" if result['signal'] == "buy" else "🔴" if result['signal'] == "sell" else "⚪"
+                report.append(
+                    f"{signal_emoji} *{result['symbol']}*: ${result['price']:,.2f} | {result['signal'].upper()} ({result['confidence']:.0%})"
+                )
             
-            # Trending
-            if trending:
-                report.append("\n*🔥 TRENDING:*")
-                trending_names = ", ".join([f"{c['symbol']}" for c in trending[:3]])
-                report.append(trending_names)
+            # AI Insights
+            report.append("\n*🧠 AI INSIGHTS (MiMo):*")
+            report.append(ai_analysis[:1500])  # Telegram limit
             
             # Log usage
             self.tracker.log_usage(
-                tokens=1000,  # Estimate
+                tokens=2000,  # Estimate for AI call
                 model="mimo-v2.5",
                 platform="telegram",
-                description="Crypto analysis command"
+                description="AI crypto analysis"
             )
             
             await update.message.reply_text("\n".join(report), parse_mode=ParseMode.MARKDOWN)
@@ -464,17 +478,124 @@ PnL: ${trade.pnl:,.2f}
             logger.error(f"Error in /insight: {e}")
             await update.message.reply_text(f"❌ Error: {str(e)}")
     
+    async def analyze(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle /analyze command - AI analysis for specific coin"""
+        user_id = update.effective_user.id
+        
+        if not self.is_authorized(user_id):
+            await update.message.reply_text("❌ Access denied.")
+            return
+        
+        if not context.args:
+            await update.message.reply_text(
+                "Usage: /analyze <coin>\nContoh: /analyze bitcoin"
+            )
+            return
+        
+        coin_id = context.args[0].lower()
+        
+        await update.message.reply_text(f"🧠 Analyzing {coin_id} with MiMo AI...")
+        
+        try:
+            # Get market data
+            market_data = self.crawler.get_market_data([coin_id])
+            
+            if market_data.empty:
+                await update.message.reply_text(f"❌ Coin '{coin_id}' not found.")
+                return
+            
+            coin = market_data.iloc[0]
+            symbol = coin['symbol'].upper()
+            name = coin['name']
+            price = coin.get('current_price', 0)
+            change_24h = coin.get('price_change_percentage_24h', 0) or 0
+            change_7d = coin.get('price_change_percentage_7d_in_currency', 0) or 0
+            high_24h = coin.get('high_24h', 0)
+            low_24h = coin.get('low_24h', 0)
+            volume = coin.get('total_volume', 0)
+            
+            # Get technical analysis
+            history = self.crawler.get_coin_history(coin_id, days=30)
+            technical_signals = {}
+            
+            if not history.empty:
+                analysis = self.analyzer.analyze(history)
+                technical_signals = analysis.get('signals', {})
+                technical_signals['combined_signal'] = analysis.get('combined_signal', 'neutral')
+                technical_signals['confidence'] = analysis.get('confidence', 0)
+            
+            # AI Analysis
+            price_data = {
+                'current_price': price,
+                'price_change_24h': change_24h,
+                'price_change_7d': change_7d,
+                'high_24h': high_24h,
+                'low_24h': low_24h,
+                'volume': volume
+            }
+            
+            ai_analysis = self.ai.analyze_coin(name, price_data, technical_signals)
+            
+            # Build report
+            report = []
+            report.append(f"🧠 *AI ANALYSIS: {name} ({symbol})*\n")
+            
+            # Basic info
+            report.append(f"*Current Price:* ${price:,.2f}")
+            report.append(f"*24h Change:* {change_24h:+.2f}%")
+            report.append(f"*7d Change:* {change_7d:+.2f}%")
+            report.append(f"*24h Range:* ${low_24h:,.2f} - ${high_24h:,.2f}")
+            report.append(f"*Volume:* ${volume:,.0f}")
+            
+            # Technical signals
+            signal = technical_signals.get('combined_signal', 'neutral')
+            confidence = technical_signals.get('confidence', 0)
+            signal_emoji = "🟢" if signal == "buy" else "🔴" if signal == "sell" else "⚪"
+            report.append(f"\n*Technical Signal:* {signal_emoji} {signal.upper()} ({confidence:.0%})")
+            
+            # AI Insights
+            report.append("\n*🧠 MiMo AI INSIGHTS:*")
+            report.append(ai_analysis[:2000])  # Telegram limit
+            
+            # Log usage
+            self.tracker.log_usage(
+                tokens=1500,  # Estimate for AI call
+                model="mimo-v2.5",
+                platform="telegram",
+                description=f"AI analysis for {coin_id}"
+            )
+            
+            await update.message.reply_text("\n".join(report), parse_mode=ParseMode.MARKDOWN)
+            
+        except Exception as e:
+            logger.error(f"Error in /analyze: {e}")
+            await update.message.reply_text(f"❌ Error: {str(e)}")
+    
     async def handle_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Handle non-command messages"""
-        await update.message.reply_text(
-            "🤖 Gunakan /help untuk melihat commands yang tersedia."
-        )
+        """Handle non-command messages - AI chat"""
+        user_id = update.effective_user.id
+        
+        if not self.is_authorized(user_id):
+            await update.message.reply_text("❌ Access denied.")
+            return
+        
+        message = update.message.text
+        
+        # Use MiMo for chat
+        await update.message.reply_text("🤔 Thinking...")
+        
+        try:
+            response = self.ai.chat(message)
+            await update.message.reply_text(response)
+        except Exception as e:
+            await update.message.reply_text(f"❌ Error: {str(e)}")
     
     def setup_handlers(self, app: Application):
         """Setup all command handlers"""
         app.add_handler(CommandHandler("start", self.start))
         app.add_handler(CommandHandler("help", self.help_cmd))
         app.add_handler(CommandHandler("crypto", self.crypto))
+        app.add_handler(CommandHandler("analyze", self.analyze))
         app.add_handler(CommandHandler("price", self.price))
         app.add_handler(CommandHandler("portfolio", self.portfolio))
         app.add_handler(CommandHandler("trade", self.trade))
@@ -487,7 +608,8 @@ PnL: ${trade.pnl:,.2f}
         commands = [
             BotCommand("start", "Start bot"),
             BotCommand("help", "Show help"),
-            BotCommand("crypto", "Market analysis"),
+            BotCommand("crypto", "AI market analysis"),
+            BotCommand("analyze", "AI analysis for specific coin"),
             BotCommand("price", "Coin price (e.g., /price bitcoin)"),
             BotCommand("portfolio", "Paper trading portfolio"),
             BotCommand("trade", "Execute trade (e.g., /trade bitcoin buy 0.01)"),
