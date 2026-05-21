@@ -1,0 +1,144 @@
+# Hermes Crypto Agent Configuration
+
+# =============================================================================
+# API SETTINGS
+# =============================================================================
+
+# CoinGecko API (free tier)
+coingecko:
+  base_url: "https://api.coingecko.com/api/v3"
+  api_key: ""  # Optional - for higher rate limits
+
+# Telegram Bot
+telegram:
+  bot_token: "${TELEGRAM_BOT_TOKEN}"
+  allowed_users:
+    - 1094401966  # Your Telegram user ID
+
+# =============================================================================
+# TRADING SETTINGS
+# =============================================================================
+
+trading:
+  # Paper Trading
+  initial_balance: 10000.0
+  currency: "USD"
+  
+  # Position Sizing
+  max_position_pct: 0.20  # Max 20% per position
+  min_position_usd: 100   # Minimum trade size
+  
+  # Risk Management
+  stop_loss_pct: 0.05     # 5% stop loss
+  take_profit_pct: 0.15   # 15% take profit
+  max_drawdown_pct: 0.20  # 20% max drawdown
+  max_open_positions: 5   # Max simultaneous positions
+
+# =============================================================================
+# ANALYSIS SETTINGS
+# =============================================================================
+
+analysis:
+  # Technical Indicators
+  indicators:
+    rsi:
+      period: 14
+      overbought: 70
+      oversold: 30
+    macd:
+      fast: 12
+      slow: 26
+      signal: 9
+    bollinger:
+      period: 20
+      std_dev: 2
+    ema:
+      - 9
+      - 21
+      - 50
+      - 200
+  
+  # Signal Thresholds
+  signals:
+    min_confidence: 0.6  # Minimum confidence to generate signal
+    strong_signal: 0.8   # Strong signal threshold
+
+# =============================================================================
+# WATCHLIST
+# =============================================================================
+
+watchlist:
+  # Top cryptocurrencies to track
+  coins:
+    - id: "bitcoin"
+      symbol: "BTC"
+      name: "Bitcoin"
+    - id: "ethereum"
+      symbol: "ETH"
+      name: "Ethereum"
+    - id: "solana"
+      symbol: "SOL"
+      name: "Solana"
+    - id: "cardano"
+      symbol: "ADA"
+      name: "Cardano"
+    - id: "ripple"
+      symbol: "XRP"
+      name: "XRP"
+    - id: "dogecoin"
+      symbol: "DOGE"
+      name: "Dogecoin"
+    - id: "polkadot"
+      symbol: "DOT"
+      name: "Polkadot"
+    - id: "avalanche-2"
+      symbol: "AVAX"
+      name: "Avalanche"
+
+# =============================================================================
+# ALERTS
+# =============================================================================
+
+alerts:
+  # Price Alerts
+  price_change_threshold: 5.0  # Alert on 5% price change
+  volume_spike_threshold: 2.0  # Alert on 2x volume spike
+  
+  # Notification Settings
+  notify_on_signal: true
+  notify_on_trade: true
+  daily_report: true
+  daily_report_hour: 8  # 8 AM local time
+
+# =============================================================================
+# DATABASE
+# =============================================================================
+
+database:
+  url: "sqlite:///data/crypto_agent.db"
+  echo: false  # Set true for SQL logging
+
+# =============================================================================
+# SCHEDULER
+# =============================================================================
+
+scheduler:
+  # Market data refresh interval (minutes)
+  data_refresh_interval: 5
+  
+  # Analysis interval (minutes)
+  analysis_interval: 15
+  
+  # Report schedule (cron format)
+  market_report: "0 */4 * * *"  # Every 4 hours
+  daily_summary: "0 8 * * *"    # Daily at 8 AM
+
+# =============================================================================
+# LOGGING
+# =============================================================================
+
+logging:
+  level: "INFO"
+  file: "logs/crypto_agent.log"
+  rotation: "10 MB"
+  retention: "30 days"

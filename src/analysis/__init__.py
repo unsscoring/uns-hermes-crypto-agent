@@ -12,7 +12,8 @@ class TechnicalAnalysis:
     """Technical analysis for cryptocurrency trading"""
     
     def __init__(self, config: Dict = None):
-        self.config = config or {
+        # Default flat config
+        defaults = {
             "rsi_period": 14,
             "rsi_overbought": 70,
             "rsi_oversold": 30,
@@ -22,6 +23,25 @@ class TechnicalAnalysis:
             "bb_period": 20,
             "bb_std": 2
         }
+        
+        # Handle nested YAML config (analysis.indicators.rsi.period -> rsi_period)
+        if config and "indicators" in config:
+            ind = config["indicators"]
+            if "rsi" in ind:
+                defaults["rsi_period"] = ind["rsi"].get("period", 14)
+                defaults["rsi_overbought"] = ind["rsi"].get("overbought", 70)
+                defaults["rsi_oversold"] = ind["rsi"].get("oversold", 30)
+            if "macd" in ind:
+                defaults["macd_fast"] = ind["macd"].get("fast", 12)
+                defaults["macd_slow"] = ind["macd"].get("slow", 26)
+                defaults["macd_signal"] = ind["macd"].get("signal", 9)
+            if "bollinger" in ind:
+                defaults["bb_period"] = ind["bollinger"].get("period", 20)
+                defaults["bb_std"] = ind["bollinger"].get("std_dev", 2)
+        elif config:
+            defaults.update(config)
+        
+        self.config = defaults
     
     def calculate_rsi(self, prices: pd.Series, period: int = None) -> pd.Series:
         """Calculate Relative Strength Index"""

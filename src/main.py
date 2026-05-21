@@ -13,6 +13,8 @@ from datetime import datetime
 from src.crawler import CryptoCrawler, fetch_all_data
 from src.analysis import TechnicalAnalysis
 from src.trading import PaperTradingEngine
+from src.insight import TokenInsight, get_insight
+from src.token_tracker import TokenTracker, get_usage_report, log_current_session
 
 
 class CryptoAgent:
@@ -104,7 +106,7 @@ class CryptoAgent:
                 change_7d = coin.get('price_change_percentage_7d_in_currency', 0) or 0
                 
                 # Get historical data for analysis
-                history = self.crawler.get_coin_history(coin_id, days=30)
+                history = self.crawler.get_coin_history(coin_id, days=90)
                 
                 if not history.empty:
                     analysis = self.analyzer.analyze(history)
@@ -216,13 +218,14 @@ def main():
     import argparse
     
     parser = argparse.ArgumentParser(description="Hermes Crypto Agent")
-    parser.add_argument("command", choices=["analyze", "portfolio", "trade", "history"],
+    parser.add_argument("command", choices=["analyze", "portfolio", "trade", "history", "insight"],
                        help="Command to execute")
     parser.add_argument("--coin", help="Coin ID (e.g., bitcoin)")
     parser.add_argument("--symbol", help="Coin symbol (e.g., BTC)")
     parser.add_argument("--side", choices=["buy", "sell"], help="Trade side")
     parser.add_argument("--amount", type=float, help="Trade amount")
     parser.add_argument("--config", default="config/config.yaml", help="Config file path")
+    parser.add_argument("--days", type=int, default=30, help="Days for insight report")
     
     args = parser.parse_args()
     
@@ -241,6 +244,8 @@ def main():
         trades = agent.trader.get_trade_history()
         for trade in trades:
             print(f"{trade['timestamp']} | {trade['side'].upper()} {trade['amount']:.4f} {trade['symbol']} @ ${trade['price']:,.2f} | PnL: ${trade['pnl']:,.2f}")
+    elif args.command == "insight":
+        print(get_usage_report())
 
 
 if __name__ == "__main__":

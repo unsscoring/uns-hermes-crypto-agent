@@ -3,10 +3,15 @@ Crypto Data Crawler - Fetches real-time market data
 """
 
 import requests
+import time
 import pandas as pd
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 from loguru import logger
+
+
+# Rate limit delay between CoinGecko API calls (seconds)
+API_DELAY = 1.5
 
 
 class CryptoCrawler:
@@ -36,6 +41,8 @@ class CryptoCrawler:
             "sparkline": "false",
             "price_change_percentage": "1h,24h,7d"
         }
+        
+        time.sleep(API_DELAY)
         
         try:
             response = requests.get(url, headers=self.headers, params=params)
@@ -70,24 +77,40 @@ class CryptoCrawler:
             "interval": "daily"
         }
         
-        try:
-            response = requests.get(url, headers=self.headers, params=params)
-            response.raise_for_status()
-            data = response.json()
-            
-            prices = pd.DataFrame(data['prices'], columns=['timestamp', 'price'])
-            volumes = pd.DataFrame(data['total_volumes'], columns=['timestamp', 'volume'])
-            market_caps = pd.DataFrame(data['market_caps'], columns=['timestamp', 'market_cap'])
-            
-            df = prices.merge(volumes, on='timestamp').merge(market_caps, on='timestamp')
-            df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
-            
-            logger.info(f"Fetched {len(df)} days of history for {coin_id}")
-            return df
-            
-        except Exception as e:
-            logger.error(f"Error fetching history for {coin_id}: {e}")
-            return pd.DataFrame()
+        # Rate limit delay
+        time.sleep(API_DELAY)
+        
+        # Retry up to 3 times on 429
+        for attempt in range(3):
+            try:
+                response = requests.get(url, headers=self.headers, params=params)
+                if response.status_code == 429:
+                    wait = 5 * (attempt + 1)
+                    logger.warning(f"Rate limited on {coin_id}, waiting {wait}s...")
+                    time.sleep(wait)
+                    continue
+                response.raise_for_status()
+                data = response.json()
+                
+                prices = pd.DataFrame(data['prices'], columns=['timestamp', 'price'])
+                volumes = pd.DataFrame(data['total_volumes'], columns=['timestamp', 'volume'])
+                market_caps = pd.DataFrame(data['market_caps'], columns=['timestamp', 'market_cap'])
+                
+                df = prices.merge(volumes, on='timestamp').merge(market_caps, on='timestamp')
+                df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+                
+                logger.info(f"Fetched {len(df)} days of history for {coin_id}")
+                return df
+                
+            except Exception as e:
+                if attempt < 2:
+                    logger.warning(f"Retry {attempt+1} for {coin_id}: {e}")
+                    time.sleep(3)
+                    continue
+                logger.error(f"Error fetching history for {coin_id}: {e}")
+                return pd.DataFrame()
+        
+        return pd.DataFrame()
     
     def get_trending(self) -> List[Dict]:
         """Get trending coins"""
