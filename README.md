@@ -56,23 +56,52 @@ python -m src.main trade
 python -m src.main bot
 ```
 
-## 📊 Trading Strategies
+## 📊 Analysis & Trading Strategies
 
-### 1. RSI Strategy
-- Buy when RSI < 30 (oversold)
-- Sell when RSI > 70 (overbought)
+### AI-Powered Analysis (Xiaomi MiMo)
 
-### 2. MACD Strategy
-- Buy on MACD crossover above signal line
-- Sell on MACD crossover below signal line
+Semua analisis didukung oleh **Xiaomi MiMo AI** untuk insight yang lebih mendalam:
 
-### 3. Bollinger Bands
-- Buy when price touches lower band
-- Sell when price touches upper band
+#### 1. Market Overview (`/crypto`)
+- AI menganalisis kondisi market secara keseluruhan
+- Menggabungkan data harga, volume, dan sentimen
+- Memberikan rekomendasi berdasarkan pola market
 
-### 4. Combined Strategy
-- Uses weighted scoring from multiple indicators
-- Higher confidence = stronger signals
+#### 2. Coin Analysis (`/analyze <coin>`)
+- Analisis mendalam per coin dengan AI
+- Evaluasi technical indicators (RSI, MACD, Bollinger, EMA)
+- Rekomendasi BUY/SELL/HOLD dengan target harga
+- Risk assessment dan stop-loss suggestions
+
+#### 3. Trading Signals (`/signals`)
+- AI-generated signals untuk semua coin di watchlist
+- Confidence score untuk setiap signal
+- Penjelasan alasan di balik setiap signal
+
+#### 4. AI Chat
+- Tanya apa saja tentang crypto ke MiMo
+- Penjelasan indikator teknikal
+- Edukasi trading dan risk management
+
+### Technical Indicators (Supporting Data)
+
+Data teknikal dikumpulkan untuk input AI:
+- **RSI** (Relative Strength Index) - Overbought/Oversold
+- **MACD** (Moving Average Convergence Divergence) - Momentum
+- **Bollinger Bands** - Volatility & Price Levels
+- **EMA** (Exponential Moving Average) - Trend Direction
+
+### How It Works
+
+```
+1. Data Collection → CoinGecko API (harga, volume, market cap)
+          ↓
+2. Technical Analysis → Hitung indicators (RSI, MACD, BB, EMA)
+          ↓
+3. AI Analysis → MiMo menganalisis semua data + indicators
+          ↓
+4. Insights → Rekomendasi actionable untuk user
+```
 
 ## 💰 Paper Trading
 
@@ -113,21 +142,23 @@ alerts:
 
 | Command | Description |
 |---------|-------------|
-| `/crypto` | Get market overview |
+| `/crypto` | AI market analysis |
+| `/analyze <coin>` | AI analysis for specific coin |
 | `/price <coin>` | Get specific coin price |
 | `/signals` | View trading signals |
 | `/portfolio` | View paper trading portfolio |
 | `/trade <coin> <amount>` | Execute paper trade |
-| `/history` | View trade history |
+| `/insight` | Token usage |
+| `*chat*` | Tanya apa saja ke MiMo AI |
 
 ## 🛠️ Tech Stack
 
 - **Agent Framework**: Hermes Agent
-- **AI Model**: Xiaomi MiMo
+- **AI Model**: Xiaomi MiMo v2.5
 - **Data Source**: CoinGecko API
 - **Messaging**: Telegram Bot
 - **Language**: Python 3.11+
-- **Database**: SQLite (trade history)
+- **Database**: SQLite (trade history, token tracking)
 
 ## 📈 Performance Tracking
 
